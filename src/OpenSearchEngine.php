@@ -1,11 +1,4 @@
 <?php
-/**
- * This file is part of ruogoo.
- *
- * Created by HyanCat.
- *
- * Copyright (C) HyanCat. All rights reserved.
- */
 
 namespace Ruogoo\OpenSearch;
 
@@ -21,6 +14,8 @@ use OpenSearch\Client\SearchClient;
 use OpenSearch\Generated\Common\OpenSearchResult;
 use OpenSearch\Util\SearchParamsBuilder;
 
+use Illuminate\Support\Arr;
+
 class OpenSearchEngine extends Engine
 {
     protected $client;
@@ -31,13 +26,13 @@ class OpenSearchEngine extends Engine
 
     public function __construct(Repository $config)
     {
-        $accessKeyID     = $config->get('scout.opensearch.accessKeyID');
+        $accessKeyID = $config->get('scout.opensearch.accessKeyID');
         $accessKeySecret = $config->get('scout.opensearch.accessKeySecret');
-        $host            = $config->get('scout.opensearch.host');
-        $this->config    = $config;
+        $endPoint = $config->get('scout.opensearch.host');
+				$options = ['debug' => $config->get('scout.opensearch.debug');
+        $this->config = $config;
 
-        $this->client = new OpenSearchClient($accessKeyID, $accessKeySecret, $host);
-
+        $this->client = new OpenSearchClient($accessKeyID, $accessKeySecret, $host, $options);
         $this->documentClient = new DocumentClient($this->client);
         $this->searchClient   = new SearchClient($this->client);
     }
@@ -65,24 +60,25 @@ class OpenSearchEngine extends Engine
     public function mapIds($results)
     {
         $result = $this->checkResults($results);
-        if (array_get($result, 'result.num', 0) === 0) {
+        if (Arr::get($result, 'result.num', 0) === 0) {
             return collect();
         }
 
-        return collect(array_get($result, 'result.items'))->pluck('fields.id')->values();
+        return collect(Arr::get($result, 'result.items'))->pluck('fields.id')->values();
     }
 
-    public function map($results, $model)
+    public function map(Builder $builder, $results, $model)
     {
         $result = $this->checkResults($results);
 
-        if (array_get($result, 'result.num', 0) === 0) {
+        if (Arr::get($result, 'result.num', 0) === 0) {
             return collect();
         }
-        $keys   = collect(array_get($result, 'result.items'))->pluck('fields.id')->values()->all();
+
+        $keys   = collect(Arr::get($result, 'result.items'))->pluck('fields.id')->values()->all();
         $models = $model->whereIn($model->getQualifiedKeyName(), $keys)->get()->keyBy($model->getKeyName());
 
-        return collect(array_get($result, 'result.items'))->map(function ($item) use ($model, $models) {
+        return collect(Arr::get($result, 'result.items'))->map(function ($item) use ($model, $models) {
             $key = $item['fields']['id'];
 
             if (isset($models[$key])) {
@@ -95,7 +91,7 @@ class OpenSearchEngine extends Engine
     {
         $result = $this->checkResults($results);
 
-        return array_get($result, 'result.total', 0);
+        return Arr::get($result, 'result.total', 0);
     }
 
     /**
@@ -132,15 +128,18 @@ class OpenSearchEngine extends Engine
         $params->setStart($from);
         $params->setHits($count);
         $params->setAppName($builder->model->openSearchAppName());
+				$builder->index = $builder->index ?: $builder->model->searchableAs();
+
         if ($builder->index) {
             $params->setQuery("$builder->index:'$builder->query'");
         } else {
             $params->setQuery("'$builder->query'");
         }
+
         $params->setFormat('fullJson');
         $params->addSort($builder->model->sortField(), SearchParamsBuilder::SORT_DECREASE);
 
-        return $this->searchClient->execute($params->build());
+				return $this->searchClient->execute($params->build());
     }
 
     private function checkResults($results)
@@ -152,4 +151,8 @@ class OpenSearchEngine extends Engine
 
         return $result;
     }
+
+		public function flush($model)
+		{
+		}
 }
