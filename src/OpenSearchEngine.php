@@ -28,11 +28,11 @@ class OpenSearchEngine extends Engine
     {
         $accessKeyID = $config->get('scout.opensearch.accessKeyID');
         $accessKeySecret = $config->get('scout.opensearch.accessKeySecret');
-        $endPoint = $config->get('scout.opensearch.host');
-				$options = ['debug' => $config->get('scout.opensearch.debug');
+        $endPoint = $config->get('scout.opensearch.endPoint');
+				$options = ['debug' => $config->get('scout.opensearch.debug')];
         $this->config = $config;
 
-        $this->client = new OpenSearchClient($accessKeyID, $accessKeySecret, $host, $options);
+        $this->client = new OpenSearchClient($accessKeyID, $accessKeySecret, $endPoint, $options);
         $this->documentClient = new DocumentClient($this->client);
         $this->searchClient   = new SearchClient($this->client);
     }
